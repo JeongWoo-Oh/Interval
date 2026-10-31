@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>인터벌 달리기 타이머 - RUNPULSE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        run: { DEFAULT: '#ff5722', light: '#fff2ee', border: '#ffbeaa' },
+                        rest: { DEFAULT: '#10b981', light: '#ecfdf5', border: '#a7f3d0' },
+                        warmup: { DEFAULT: '#f59e0b', light: '#fffbeb', border: '#fde68a' },
+                        cooldown: { DEFAULT: '#3b82f6', light: '#eff6ff', border: '#bfdbfe' }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Outfit', 'sans-serif'],
+                        mono: ['Outfit', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        input[type=range] { -webkit-appearance: none; background: transparent; touch-action: manipulation; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 28px; width: 28px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15), 0 0 0 2px currentColor;
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; border-radius: 9999px; background: #e2e8f0; }
+        .no-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col no-select antialiased">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="p-2 bg-orange-500 text-white rounded-xl shadow-md shadow-orange-500/30">
+                    <i data-lucide="activity" class="w-5 h-5 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-tight text-slate-900 leading-tight">RUN<span class="text-orange-500">PULSE</span></h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto w-full flex-1 p-4 pb-12 flex flex-col">
+        <div id="setup-screen" class="space-y-4">
+            <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl p-5 text-white shadow-lg shadow-orange-500/20 relative overflow-hidden">
+                <div class="relative z-10 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-semibold text-orange-100 uppercase tracking-wider mb-0.5">총 예상 운동 시간</div>
+                        <div class="text-4xl font-black font-mono tracking-tight" id="setup-total-time">18:00</div>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur-md px-3.5 py-2 rounded-2xl text-center border border-white/30">
+                        <div class="text-[10px] text-orange-100 font-bold uppercase">목표 세트</div>
+                        <div class="text-xl font-black font-mono" id="setup-total-sets">8 세트</div>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-white/20 flex h-2 rounded-full overflow-hidden bg-black/10 gap-0.5" id="setup-timeline"></div>
+            </div>
+
+            <div class="bg-white border border-slate-200/80 rounded-3xl p-4 shadow-sm space-y-5">
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center gap-2 font-bold text-sm text-slate-700">
+                            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>워밍업 (Warmup)
+                        </span>
+                        <div class="flex items-center space-x-1.5">
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="warmup" data-step="-15">-</button>
+                            <span class="w-16 text-center font-mono font-extrabold text-amber-600 text-base" id="val-warmup">3분 00초</span>
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="warmup" data-step="15">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-warmup" min="0" max="600" step="15" value="180" class="w-full text-amber-500">
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center gap-2 font-bold text-sm text-slate-800">
+                            <span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span>달리기 (Sprint)
+                        </span>
+                        <div class="flex items-center space-x-1.5">
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="run" data-step="-5">-</button>
+                            <span class="w-16 text-center font-mono font-extrabold text-orange-600 text-base" id="val-run">30초</span>
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="run" data-step="5">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-run" min="5" max="300" step="5" value="30" class="w-full text-orange-500">
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center gap-2 font-bold text-sm text-slate-800">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>휴식 (Rest)
+                        </span>
+                        <div class="flex items-center space-x-1.5">
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="rest" data-step="-5">-</button>
+                            <span class="w-16 text-center font-mono font-extrabold text-emerald-600 text-base" id="val-rest">60초</span>
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="rest" data-step="5">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-rest" min="5" max="300" step="5" value="60" class="w-full text-emerald-500">
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center gap-2 font-bold text-sm text-slate-800">
+                            <i data-lucide="repeat" class="w-4 h-4 text-slate-500"></i>반복 횟수 (Sets)
+                        </span>
+                        <div class="flex items-center space-x-1.5">
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="sets" data-step="-1">-</button>
+                            <span class="w-16 text-center font-mono font-extrabold text-slate-800 text-base" id="val-sets">8회</span>
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="sets" data-step="1">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-sets" min="1" max="30" step="1" value="8" class="w-full text-slate-700">
+                </div>
+
+                <hr class="border-slate-100">
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center gap-2 font-bold text-sm text-slate-800">
+                            <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>쿨다운 (Cooldown)
+                        </span>
+                        <div class="flex items-center space-x-1.5">
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="cooldown" data-step="-15">-</button>
+                            <span class="w-16 text-center font-mono font-extrabold text-blue-600 text-base" id="val-cooldown">3분 00초</span>
+                            <button class="step-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center active:scale-90 transition" data-target="cooldown" data-step="15">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="slider-cooldown" min="0" max="600" step="15" value="180" class="w-full text-blue-500">
+                </div>
+            </div>
+
+            <button id="start-btn" class="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-lg shadow-orange-500/30 flex items-center justify-center space-x-2 transition">
+                <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                <span>인터벌 운동 시작</span>
+            </button>
+        </div>
+
+        <div id="timer-screen" class="hidden flex-1 flex-col justify-between space-y-6">
+            <div class="flex justify-between items-center bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                <div>
+                    <div class="text-[11px] text-slate-400 font-bold uppercase">전체 진행 시간</div>
+                    <div class="text-xl font-mono font-black text-slate-700" id="timer-elapsed-total">00:00 / 18:00</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[11px] text-slate-400 font-bold uppercase">세트 진행</div>
+                    <div class="text-xl font-mono font-black text-orange-500" id="timer-set-counter">1 / 8</div>
+                </div>
+            </div>
+
+            <div id="phase-card" class="flex-1 flex flex-col justify-center items-center p-8 rounded-3xl border-2 transition-all duration-300 bg-orange-50 border-orange-300 text-center shadow-md relative overflow-hidden">
+                <div id="phase-badge" class="px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white bg-orange-500 mb-4 shadow-sm">워밍업</div>
+                <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter my-2 text-slate-900" id="timer-clock">03:00</div>
+                <div class="text-sm font-bold text-slate-600 mt-2" id="phase-instruction">가벼운 조깅이나 걷기로 준비하세요</div>
+                <div class="mt-6 pt-4 border-t border-slate-200/60 text-xs font-semibold text-slate-500 flex items-center gap-1">
+                    <span>다음 단계:</span>
+                    <span id="next-phase-text" class="font-extrabold text-slate-800">달리기 (30초)</span>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <div class="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                    <div id="timer-progress-bar" class="h-full bg-orange-500 transition-all duration-300 w-0"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <button id="pause-btn" class="py-4 rounded-2xl bg-slate-800 text-white font-extrabold flex items-center justify-center space-x-1.5 shadow-md active:scale-95 transition">
+                    <i data-lucide="pause" id="pause-icon" class="w-5 h-5 fill-current"></i>
+                    <span id="pause-text">일시정지</span>
+                </button>
+                <button id="skip-btn" class="py-4 rounded-2xl bg-white border border-slate-300 text-slate-700 font-extrabold flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 transition">
+                    <i data-lucide="fast-forward" class="w-5 h-5"></i>
+                    <span>건너뛰기</span>
+                </button>
+                <button id="stop-btn" class="py-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 font-extrabold flex items-center justify-center space-x-1.5 active:scale-95 transition">
+                    <i data-lucide="square" class="w-5 h-5 fill-current"></i>
+                    <span>종료</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        let audioCtx = null;
+
+        function ensureAudioContext() {
+            try {
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContextClass();
+                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {}
+            return audioCtx;
+        }
+
+        function playClarinetTone(freq, startTime, duration) {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            const real = new Float32Array([0, 1.0, 0, 0.4, 0, 0.12, 0, 0.04]);
+            const imag = new Float32Array(real.length);
+            const wave = ctx.createPeriodicWave(real, imag);
+
+            const osc = ctx.createOscillator();
+            osc.setPeriodicWave(wave);
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            lfo.frequency.setValueAtTime(4.5, startTime);
+            lfoGain.gain.setValueAtTime(1.5, startTime);
+            lfo.connect(osc.frequency);
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1800, startTime);
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.25, startTime + 0.06);
+            gain.gain.setValueAtTime(0.2, startTime + duration - 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            lfo.start(startTime);
+            osc.start(startTime);
+            lfo.stop(startTime + duration);
+            osc.stop(startTime + duration);
+        }
+
+        function playClarinetSound(type = 'run') {
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            if (type === 'run') {
+                playClarinetTone(523.25, now, 0.4);
+                playClarinetTone(659.25, now + 0.4, 0.4);
+                playClarinetTone(783.99, now + 0.8, 2.4);
+            } else if (type === 'rest') {
+                playClarinetTone(659.25, now, 0.4);
+                playClarinetTone(523.25, now + 0.4, 0.4);
+                playClarinetTone(440.00, now + 0.8, 2.4);
+            } else {
+                playClarinetTone(392.00, now, 0.4);
+                playClarinetTone(523.25, now + 0.4, 0.4);
+                playClarinetTone(659.25, now + 0.8, 2.4);
+            }
+        }
+
+        const state = { warmup: 180, run: 30, rest: 60, sets: 8, cooldown: 180 };
+        let workoutSequence = [], currentStepIndex = 0, stepSecondsLeft = 0, totalWorkoutSeconds = 0, totalElapsedSeconds = 0, timerInterval = null, isPaused = false;
+
+        const setupScreen = document.getElementById('setup-screen');
+        const timerScreen = document.getElementById('timer-screen');
+        const sliders = { warmup: document.getElementById('slider-warmup'), run: document.getElementById('slider-run'), rest: document.getElementById('slider-rest'), sets: document.getElementById('slider-sets'), cooldown: document.getElementById('slider-cooldown') };
+        const labels = { warmup: document.getElementById('val-warmup'), run: document.getElementById('val-run'), rest: document.getElementById('val-rest'), sets: document.getElementById('val-sets'), cooldown: document.getElementById('val-cooldown') };
+
+        function formatTimeText(sec) {
+            if (sec < 60) return `${sec}초`;
+            const m = Math.floor(sec / 60), s = sec % 60;
+            return s === 0 ? `${m}분` : `${m}분 ${String(s).padStart(2, '0')}초`;
+        }
+        function formatMMSS(sec) {
+            const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        function updateSetupUI() {
+            state.warmup = parseInt(sliders.warmup.value, 10);
+            state.run = parseInt(sliders.run.value, 10);
+            state.rest = parseInt(sliders.rest.value, 10);
+            state.sets = parseInt(sliders.sets.value, 10);
+            state.cooldown = parseInt(sliders.cooldown.value, 10);
+
+            labels.warmup.textContent = formatTimeText(state.warmup);
+            labels.run.textContent = formatTimeText(state.run);
+            labels.rest.textContent = formatTimeText(state.rest);
+            labels.sets.textContent = `${state.sets}회`;
+            labels.cooldown.textContent = formatTimeText(state.cooldown);
+
+            const grandTotal = state.warmup + ((state.run + state.rest) * state.sets) + state.cooldown;
+            document.getElementById('setup-total-time').textContent = formatMMSS(grandTotal);
+            document.getElementById('setup-total-sets').textContent = `${state.sets} 세트`;
+
+            const timeline = document.getElementById('setup-timeline');
+            timeline.innerHTML = '';
+            if (grandTotal <= 0) return;
+            const appendSeg = (duration, colorClass) => {
+                if (duration <= 0) return;
+                const div = document.createElement('div');
+                div.className = `h-full ${colorClass}`;
+                div.style.width = `${(duration / grandTotal) * 100}%`;
+                timeline.appendChild(div);
+            };
+            appendSeg(state.warmup, 'bg-amber-400');
+            for (let i = 0; i < state.sets; i++) {
+                appendSeg(state.run, 'bg-orange-500');
+                appendSeg(state.rest, 'bg-emerald-400');
+            }
+            appendSeg(state.cooldown, 'bg-blue-400');
+        }
+
+        Object.keys(sliders).forEach(key => sliders[key].addEventListener('input', updateSetupUI));
+        document.querySelectorAll('.step-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetKey = btn.dataset.target, step = parseInt(btn.dataset.step, 10), slider = sliders[targetKey];
+                slider.value = Math.max(parseInt(slider.min, 10), Math.min(parseInt(slider.max, 10), parseInt(slider.value, 10) + step));
+                updateSetupUI();
+            });
+        });
+
+        function buildWorkoutSequence() {
+            workoutSequence = [];
+            if (state.warmup > 0) workoutSequence.push({ type: 'warmup', duration: state.warmup, title: '워밍업', note: '가벼운 조깅이나 걷기' });
+            for (let i = 1; i <= state.sets; i++) {
+                workoutSequence.push({ type: 'run', duration: state.run, title: '달리기 (Sprint)', setNum: i, note: '목표 페이스로 힘차게 달리세요!' });
+                workoutSequence.push({ type: 'rest', duration: state.rest, title: '휴식 (Rest)', setNum: i, note: '천천히 걸으며 호흡을 가다듬으세요' });
+            }
+            if (state.cooldown > 0) workoutSequence.push({ type: 'cooldown', duration: state.cooldown, title: '쿨다운', note: '천천히 걸으며 심박수 낮추기' });
+            totalWorkoutSeconds = workoutSequence.reduce((acc, cur) => acc + cur.duration, 0);
+        }
+
+        function startWorkout() {
+            ensureAudioContext(); buildWorkoutSequence();
+            if (workoutSequence.length === 0) return;
+            currentStepIndex = 0; totalElapsedSeconds = 0; isPaused = false;
+            setupScreen.classList.add('hidden'); timerScreen.classList.remove('hidden'); timerScreen.classList.add('flex');
+            loadStep(currentStepIndex);
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(tick, 1000);
+        }
+
+        function loadStep(index) {
+            if (index >= workoutSequence.length) { finishWorkout(); return; }
+            const step = workoutSequence[index]; stepSecondsLeft = step.duration;
+            playClarinetSound(step.type === 'run' ? 'run' : 'rest');
+            updateTimerDisplay();
+        }
+
+        function tick() {
+            if (isPaused) return;
+            stepSecondsLeft--; totalElapsedSeconds++;
+            if (stepSecondsLeft < 0) {
+                currentStepIndex++;
+                if (currentStepIndex < workoutSequence.length) loadStep(currentStepIndex);
+                else finishWorkout();
+                return;
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const step = workoutSequence[currentStepIndex];
+            const phaseCard = document.getElementById('phase-card'), phaseBadge = document.getElementById('phase-badge');
+            const clock = document.getElementById('timer-clock'), instruction = document.getElementById('phase-instruction');
+            const setCounter = document.getElementById('timer-set-counter'), nextPhaseText = document.getElementById('next-phase-text');
+            const progressBar = document.getElementById('timer-progress-bar'), totalElapsedDisplay = document.getElementById('timer-elapsed-total');
+
+            clock.textContent = formatMMSS(stepSecondsLeft);
+            phaseCard.className = "flex-1 flex flex-col justify-center items-center p-8 rounded-3xl border-2 transition-all duration-300 text-center shadow-md relative overflow-hidden ";
+            if (step.type === 'warmup') { phaseCard.classList.add('bg-amber-50', 'border-amber-200'); phaseBadge.className = "px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white bg-amber-500 mb-4 shadow-sm"; phaseBadge.textContent = "워밍업"; }
+            else if (step.type === 'run') { phaseCard.classList.add('bg-orange-50', 'border-orange-300'); phaseBadge.className = "px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white bg-orange-500 mb-4 shadow-sm animate-pulse"; phaseBadge.textContent = "RUN - 달리기"; }
+            else if (step.type === 'rest') { phaseCard.classList.add('bg-emerald-50', 'border-emerald-200'); phaseBadge.className = "px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white bg-emerald-500 mb-4 shadow-sm"; phaseBadge.textContent = "REST - 휴식"; }
+            else if (step.type === 'cooldown') { phaseCard.classList.add('bg-blue-50', 'border-blue-200'); phaseBadge.className = "px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white bg-blue-500 mb-4 shadow-sm"; phaseBadge.textContent = "쿨다운"; }
+
+            instruction.textContent = step.note;
+            setCounter.textContent = step.setNum ? `${step.setNum} / ${state.sets}` : `- / ${state.sets}`;
+            nextPhaseText.textContent = (currentStepIndex + 1 < workoutSequence.length) ? `${workoutSequence[currentStepIndex + 1].title} (${formatTimeText(workoutSequence[currentStepIndex + 1].duration)})` : "운동 완료!";
+            totalElapsedDisplay.textContent = `${formatMMSS(totalElapsedSeconds)} / ${formatMMSS(totalWorkoutSeconds)}`;
+            progressBar.style.width = `${Math.min(100, (totalElapsedSeconds / totalWorkoutSeconds) * 100)}%`;
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const pauseIcon = document.getElementById('pause-icon'), pauseText = document.getElementById('pause-text');
+            pauseText.textContent = isPaused ? "재개" : "일시정지";
+            pauseIcon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
+            lucide.createIcons();
+        }
+
+        function skipStep() {
+            if (currentStepIndex + 1 < workoutSequence.length) {
+                totalElapsedSeconds += (stepSecondsLeft > 0 ? stepSecondsLeft : 0);
+                currentStepIndex++; loadStep(currentStepIndex);
+            } else finishWorkout();
+        }
+
+        function stopWorkout() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerScreen.classList.add('hidden'); timerScreen.classList.remove('flex'); setupScreen.classList.remove('hidden');
+        }
+
+        function finishWorkout() {
+            if (timerInterval) clearInterval(timerInterval);
+            playClarinetSound('complete'); alert("수고하셨습니다! 모든 운동 세트가 완료되었습니다. 🎉"); stopWorkout();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startWorkout);
+        document.getElementById('pause-btn').addEventListener('click', togglePause);
+        document.getElementById('skip-btn').addEventListener('click', skipStep);
+        document.getElementById('stop-btn').addEventListener('click', stopWorkout);
+        updateSetupUI();
+    </script>
+</body>
+</html>
