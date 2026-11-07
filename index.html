@@ -280,6 +280,35 @@
         const sliders = { warmup: document.getElementById('slider-warmup'), run: document.getElementById('slider-run'), rest: document.getElementById('slider-rest'), sets: document.getElementById('slider-sets'), cooldown: document.getElementById('slider-cooldown') };
         const labels = { warmup: document.getElementById('val-warmup'), run: document.getElementById('val-run'), rest: document.getElementById('val-rest'), sets: document.getElementById('val-sets'), cooldown: document.getElementById('val-cooldown') };
 
+        // 로컬 스토리지에서 설정 불러오기
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('runpulse_settings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.warmup !== undefined) sliders.warmup.value = parsed.warmup;
+                    if (parsed.run !== undefined) sliders.run.value = parsed.run;
+                    if (parsed.rest !== undefined) sliders.rest.value = parsed.rest;
+                    if (parsed.sets !== undefined) sliders.sets.value = parsed.sets;
+                    if (parsed.cooldown !== undefined) sliders.cooldown.value = parsed.cooldown;
+                }
+            } catch (e) {}
+        }
+
+        // 로컬 스토리지에 설정 저장하기
+        function saveSettings() {
+            try {
+                const data = {
+                    warmup: sliders.warmup.value,
+                    run: sliders.run.value,
+                    rest: sliders.rest.value,
+                    sets: sliders.sets.value,
+                    cooldown: sliders.cooldown.value
+                };
+                localStorage.setItem('runpulse_settings', JSON.stringify(data));
+            } catch (e) {}
+        }
+
         function formatTimeText(sec) {
             if (sec < 60) return `${sec}초`;
             const m = Math.floor(sec / 60), s = sec % 60;
@@ -322,7 +351,13 @@
                 appendSeg(state.rest, 'bg-emerald-400');
             }
             appendSeg(state.cooldown, 'bg-blue-400');
+
+            // 값이 바뀔 때마다 저장
+            saveSettings();
         }
+
+        // 페이지 로드 시 저장된 설정 불러오기 실행
+        loadSettings();
 
         Object.keys(sliders).forEach(key => sliders[key].addEventListener('input', updateSetupUI));
         document.querySelectorAll('.step-btn').forEach(btn => {
@@ -423,6 +458,8 @@
         document.getElementById('pause-btn').addEventListener('click', togglePause);
         document.getElementById('skip-btn').addEventListener('click', skipStep);
         document.getElementById('stop-btn').addEventListener('click', stopWorkout);
+        
+        // 최초 화면 초기화 시점에 UI 업데이트 실행
         updateSetupUI();
     </script>
 </body>
